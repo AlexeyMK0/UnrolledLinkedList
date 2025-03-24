@@ -7,23 +7,42 @@
 
 class NodeTag {};
 
-class SomeObj {
+class SomeObj2 {
 public:
     static inline int CopiesCount = 0;
     static inline int DestructorCalled = 0;
 
-    SomeObj() = default;
+    SomeObj2() = default;
 
-    SomeObj(SomeObj&&) {}
+    SomeObj2(SomeObj2&&) {}
 
-    SomeObj(const SomeObj&) {
+    SomeObj2(const SomeObj2&) {
         ++CopiesCount;
         if (CopiesCount == 3) {
             throw std::runtime_error("");
         }
     }
 
-    ~SomeObj() {
+    ~SomeObj2() {
+        ++DestructorCalled;
+    }
+};
+
+class SomeObj3 {
+    public:
+    static inline int CopiesCount = 0;
+    static inline int DestructorCalled = 0;
+
+    SomeObj3() = default;
+
+    SomeObj3(const SomeObj3&) {
+        ++CopiesCount;
+        if (CopiesCount == 3) {
+            throw std::runtime_error("");
+        }
+    }
+
+    ~SomeObj3() {
         ++DestructorCalled;
     }
 };
@@ -67,9 +86,9 @@ public:
     }
 
     void deallocate(T* p, std::size_t n) {
-        if constexpr (std::is_same_v<T, SomeObj>) {
-            ++TestAllocator<SomeObj>::DeallocationCount;
-            TestAllocator<SomeObj>::ElementsDeallocated += n;
+        if constexpr (std::is_same_v<T, SomeObj2>) {
+            ++TestAllocator<SomeObj2>::DeallocationCount;
+            TestAllocator<SomeObj2>::ElementsDeallocated += n;
         } else {
             ++TestAllocator<NodeTag>::DeallocationCount;
             TestAllocator<NodeTag>::ElementsDeallocated += n;
@@ -78,9 +97,9 @@ public:
     }
 
     pointer allocate(size_type sz) {
-        if constexpr (std::is_same_v<T, SomeObj>) {
-            ++TestAllocator<SomeObj>::AllocationCount;
-            TestAllocator<SomeObj>::ElementsAllocated += sz;
+        if constexpr (std::is_same_v<T, SomeObj2>) {
+            ++TestAllocator<SomeObj2>::AllocationCount;
+            TestAllocator<SomeObj2>::ElementsAllocated += sz;
         } else {
             ++TestAllocator<NodeTag>::AllocationCount;
             TestAllocator<NodeTag>::ElementsAllocated += sz;
@@ -90,29 +109,52 @@ public:
 
 };
 
+void ClearCounters() {
+    SomeObj2::CopiesCount = 0;
+    SomeObj2::DestructorCalled = 0;
+
+    TestAllocator<SomeObj2>::AllocationCount = 0;
+    TestAllocator<SomeObj2>::ElementsAllocated = 0;
+
+    TestAllocator<NodeTag>::AllocationCount = 0;
+    TestAllocator<NodeTag>::ElementsAllocated = 0;
+
+    TestAllocator<SomeObj2>::DeallocationCount = 0;
+    TestAllocator<SomeObj2>::ElementsDeallocated = 0;
+
+    TestAllocator<NodeTag>::DeallocationCount = 0;
+    TestAllocator<NodeTag>::ElementsDeallocated = 0;
+
+    SomeObj3::CopiesCount = 0;
+    SomeObj3::DestructorCalled = 0;
+}
+
 class ExceptionSafetyTest : public testing::Test {
 public:
     void SetUp() override {
-        SomeObj::CopiesCount = 0;
-        SomeObj::DestructorCalled = 0;
+        SomeObj2::CopiesCount = 0;
+        SomeObj2::DestructorCalled = 0;
 
-        TestAllocator<SomeObj>::AllocationCount = 0;
-        TestAllocator<SomeObj>::ElementsAllocated = 0;
+        TestAllocator<SomeObj2>::AllocationCount = 0;
+        TestAllocator<SomeObj2>::ElementsAllocated = 0;
 
         TestAllocator<NodeTag>::AllocationCount = 0;
         TestAllocator<NodeTag>::ElementsAllocated = 0;
 
-        TestAllocator<SomeObj>::DeallocationCount = 0;
-        TestAllocator<SomeObj>::ElementsDeallocated = 0;
+        TestAllocator<SomeObj2>::DeallocationCount = 0;
+        TestAllocator<SomeObj2>::ElementsDeallocated = 0;
 
         TestAllocator<NodeTag>::DeallocationCount = 0;
         TestAllocator<NodeTag>::ElementsDeallocated = 0;
+
+        SomeObj3::DestructorCalled = 0;
+        SomeObj3::CopiesCount = 0;
     }
 
 };
 
 /*
-    В тесте складывается 5 инстансов класса SomeObj в std::list.
+    В тесте складывается 5 инстансов класса SomeObj2 в std::list.
     Далее вызывается конструктор unrolled_list от двух итераторов
     Хранимый тип имеет особенность: он выбрасывает исключение, когда конструктор будет вызван в третий раз
 
@@ -125,20 +167,20 @@ public:
     * -- под Node имеется в виду какой-то ваш класс, которым вы описали ноду, имя класса не принципиально
 */
 TEST_F(ExceptionSafetyTest, failesAtConstruct) {
-    std::list<SomeObj> std_list;
+    std::list<SomeObj2> std_list;
     for (int i = 0; i < 5; ++i) {
-        std_list.push_back(SomeObj{});
+        std_list.push_back(SomeObj2{});
     }
-    SomeObj::DestructorCalled = 0;
+    SomeObj2::DestructorCalled = 0;
 
-    TestAllocator<SomeObj> allocator;
-    using unrolled_list_type = unrolled_list<SomeObj, 16, TestAllocator<SomeObj>>;
+    TestAllocator<SomeObj2> allocator;
+    using unrolled_list_type = unrolled_list<SomeObj2, 16, TestAllocator<SomeObj2>>;
 
     ASSERT_ANY_THROW(
         unrolled_list_type ul(std_list.begin(), std_list.end(), allocator)
     );
 
-    ASSERT_EQ(SomeObj::DestructorCalled, 2);
+    ASSERT_EQ(SomeObj2::DestructorCalled, 2);
 
     ASSERT_EQ(TestAllocator<NodeTag>::AllocationCount, TestAllocator<NodeTag>::DeallocationCount);
     ASSERT_EQ(TestAllocator<NodeTag>::ElementsAllocated, TestAllocator<NodeTag>::ElementsDeallocated);
@@ -184,4 +226,20 @@ TEST_F(ExceptionSafetyTest, failesAtPushBack) {
     ASSERT_EQ(unrolled_list.size(), 2);
     ASSERT_EQ(unrolled_list.begin()->Name, std::string("first"));
     ASSERT_EQ((++unrolled_list.begin())->Name, std::string("second"));
+}
+
+// Additional tests
+
+TEST_F(ExceptionSafetyTest, failesAtInsert) {
+    ClearCounters();
+    SomeObj3::DestructorCalled = 0;
+    TestAllocator<SomeObj3> allocator;
+    unrolled_list<SomeObj3, 16, TestAllocator<SomeObj3>> ui;
+    ASSERT_ANY_THROW(
+        ui.insert(ui.begin(), 10, SomeObj3{});
+    );
+
+    ASSERT_EQ(ui.size(), 0);
+    ASSERT_EQ(TestAllocator<NodeTag>::AllocationCount, TestAllocator<NodeTag>::DeallocationCount);
+    ASSERT_EQ(TestAllocator<NodeTag>::ElementsAllocated, TestAllocator<NodeTag>::ElementsDeallocated);
 }
