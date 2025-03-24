@@ -5,8 +5,6 @@ project(
     LANGUAGES CXX
 )
 
-# add_compile_definitions(ADD_DEBUG_PRINT)
-
 set(CMAKE_CXX_STANDARD 23)
 
 include_directories(lib)

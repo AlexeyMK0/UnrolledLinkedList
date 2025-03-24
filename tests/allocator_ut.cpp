@@ -82,7 +82,6 @@ static_assert(AllocatorRequirements<TestAllocator<SomeObj>>);
 class WorkWithAllocatorTest : public testing::Test {
 public:
     void SetUp() override {
-        std::cout << "Set up called" << std::endl;
         SomeObj::ConstructorCalled = 0;
         SomeObj::DestructorCalled = 0;
 

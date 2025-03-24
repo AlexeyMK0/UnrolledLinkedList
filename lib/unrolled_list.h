@@ -6,7 +6,6 @@
 #include <ranges>
 
 #include "Node.h"
-#include "DebugPrint.h"
 
 template<typename T, size_t NodeMaxSize = 10, typename Allocator = std::allocator<T>>
 class unrolled_list {
@@ -60,11 +59,6 @@ class unrolled_list {
             }
             ind = new_ind;
             return *this;
-        }
-        void Print() {
-            Println("Printing iterator");
-            Println(node_ptr, "node_ptr");
-            Println(ind, "ind");
         }
         friend class unrolled_list<T, NodeMaxSize, Allocator>;
      protected:
@@ -134,7 +128,6 @@ class unrolled_list {
         const_iterator(const _MyList::iterator& it)
             : BaseIterator(it) {}
         const T& operator*() const {
-            // Println(ind, "iter ind");
             return (*node_ptr)[ind - kStartInd];
         }
         const pointer operator->() const {
@@ -166,16 +159,6 @@ class unrolled_list {
         : alloc_t_(alloc_t), alloc_node_(alloc_node), size_(sz)
         , last_node_(last_node), first_node_(first_node) {}
  public:
-    void Print() {
-        NodeT* cur_node = first_node_;
-        size_t ind = 0;
-        while(cur_node) {
-            Println(ind);
-            PrintNode(*cur_node);
-            cur_node = cur_node->next();
-            ++ind;
-        }
-    }
     // Constructors from Container
     explicit unrolled_list(const Allocator& alloc = Allocator()) 
         : unrolled_list(alloc, alloc) {}
@@ -249,7 +232,6 @@ class unrolled_list {
     // operations from Sequence container
     iterator insert(const_iterator pos, const_reference val)
     {
-        Println("In insert function");
         NodeT* node_ptr = pos.node_ptr;
         if (!node_ptr) {
             if (empty() && !first_node_) {
@@ -398,7 +380,6 @@ class unrolled_list {
                 FillLeftToRequired(node_ptr, next);
             }
         }
-        Println("erased");
         if (ind == GetNodeSize(node_ptr)) {
             node_ptr = node_ptr->next();
             ind = 0;
@@ -409,7 +390,6 @@ class unrolled_list {
         if (first == last) {
             return CastToIterator(last);
         }
-        Println("Erasing completly covered nodes");
         NodeT* first_node = first.node_ptr;
         NodeT* last_node = last.node_ptr;
         size_type first_sz = GetNodeSize(first_node);
@@ -419,18 +399,10 @@ class unrolled_list {
         if (first.ind == 0) {
             elem_cnt = last.ind;
         }
-        Println(first_sz, "first_sz");
-        Println(first.ind, "first.ind");
-        Println(last.ind, "last.ind");
-        Println(elem_cnt, "elem_cnt");
-        Println("Erasing remaining elements");
         iterator ret_it = (first.ind == 0 ? Begin(last_node) : CastToIterator(first));
         for (size_type i = 0; i < elem_cnt; ++i) {
             ret_it = erase(ret_it);
-            // ret_it.Print();
-            // PrintNode(*ret_it.node_ptr);
         }
-        Println("end of erase range");
         return ret_it;
     }
     bool ValidateIteratorInErase(const const_iterator& it) {
@@ -513,23 +485,18 @@ class unrolled_list {
             created_new_node = true;
         }
         try {
-            Println("entering node->push_back(val)");
             cur_node->push_back(val);
         } catch (const std::exception& ex) {
-            Println("Ooops... found error");
             if (created_new_node) {
-                Println("Entering DeleteNode");
                 DeleteNode(cur_node);
             }
             throw;
         }
         if (created_new_node) {
-            Println(created_new_node, "created_new_node");
             if (empty()) {
                 first_node_ = last_node_ = cur_node;
             } else {
                 LinkNodes(last_node_, cur_node);
-                Println("linked nodes");
                 last_node_ = cur_node;
             }
         }
@@ -600,18 +567,13 @@ class unrolled_list {
     }
 
     void DeleteNode(NodeT* node_to_delete) {
-        Println("deleting node");
         AllocatorTraitsNode::destroy(alloc_node_, node_to_delete);
         AllocatorTraitsNode::deallocate(alloc_node_, node_to_delete, 1);
     }
     void EraseCompletlyCoveredNodes(const_iterator first, const_iterator last) noexcept {
-        first.Print();
-        last.Print();
         auto [first_node, last_node] = GetDeleteNodeRange(first, last);
         NodeT* next_node = first_node;
-        Println(last_node, "last_node ptr");
         while (next_node != last_node) {
-            Println(next_node, "cur_node ptr");
             first_node = next_node;
             next_node = first_node->next();
             EraseNode(first_node);
@@ -619,15 +581,11 @@ class unrolled_list {
     }
     // [first, second)
     std::pair<NodeT*, NodeT*> GetDeleteNodeRange(const_iterator first, const_iterator last) {
-        Println("entering GetDeleteNodeRange");
         NodeT* first_node = first.node_ptr;
         NodeT* last_node = last.node_ptr;
-        Println(first_node, "first_node ptr");
-        Println(last_node, "last_node ptr");
         if (first_node == last_node) {
             return {first_node, last_node};
         }
-        Println(first_node->next(), "first_node->next()");
         if (first.ind != 0) {
             first_node = first_node->next();
         }
@@ -653,32 +611,22 @@ class unrolled_list {
         NodeT* ret_val = node_ptr;
         // iterator ret_val;
         if (node_ptr->full()) {
-            Println("Node is full");
             ret_val = AddToFullNode(node_ptr, ind, val);
         } else {
-            Println("Just calling insert");
             node_ptr->insert(val, ind);
         }
-        Println("end of add to node");
         return ret_val;
     }
 
     NodeT* AddToFullNode(NodeT* node_ptr, difference_type ind, const_reference val) {
         NodeT* prev_node_ptr = node_ptr->prev();
         NodeT* next_node_ptr = node_ptr->next();
-        Println<bool>(!node_ptr, "node_ptr is null");
-        Println(ind, "ind");
         // for swap and copy idiom
-        // NodeT old_node = *node_ptr;
-        Println("assigned old node");
         NodeT* new_node = CreateEmptyNode();
-        Println("Created an empty node");
         bool add_to_left = false;
         try {
             difference_type left_sz = NodeMaxSize / 2;
-            Println(left_sz, "left size");
             difference_type right_sz = NodeMaxSize - left_sz;
-            Println(right_sz, "right size");
             if (ind <= left_sz) {
                 add_to_left = true;
             } else {
@@ -689,147 +637,21 @@ class unrolled_list {
                 }
                 ind -= left_sz;
             }
-            Println(left_sz, "updated left_size");
-            Println(right_sz, "updated right_size");
-            Println(ind, "updated index");
-            Println("Moving to right");
             MoveToRight(*node_ptr, *new_node, right_sz);
-            PrintNode(*node_ptr);
-            PrintNode(*new_node);
             if (add_to_left) {
-                Println("adding to old node");
                 node_ptr->insert(val, ind);
-                PrintNode(*node_ptr);
             } else {
-                Println("adding to new node");
                 new_node->insert(val, ind);
-                PrintNode(*new_node);
             }
         } catch(const std::exception& ex) {
-            Println(ex.what(), "catched an error");
             DeleteNode(new_node);
             throw;
         }
-        // Println("swap *node_ptr, old_node");
-        // std::swap(*node_ptr, old_node);
-        Println("Linking nodes");
         LinkNodes(prev_node_ptr, node_ptr);
         LinkNodes(node_ptr, new_node);
         LinkNodes(new_node, next_node_ptr);
-        Println("Linked nodes:");
-        Println("*node_ptr->prev()");
-        if (node_ptr->prev())
-            PrintNode(*node_ptr->prev());
-        Println("*node_ptr");
-        PrintNode(*node_ptr);
-        Println("*node_ptr->next()");
-        if (node_ptr->next())
-            PrintNode(*node_ptr->next());
-        Println("*new_node->prev()");
-        if (new_node->prev())
-            PrintNode(*new_node->prev());
-        Println("*new_node");
-        PrintNode(*new_node);
-        Println("*new_node->next()");
-        if (new_node->next())
-            PrintNode(*new_node->next());
-
-        Println("End of function");
-        Println(ind, "ind");
         return new_node;
     }
-    // iterator AddToFullNode(const_iterator pos, const_reference val) {
-    //     NodeT* node_ptr = pos.node_ptr;
-    //     NodeT* prev_node_ptr = node_ptr->prev();
-    //     NodeT* next_node_ptr = node_ptr->next();
-    //     bool is_first = first_node_ == node_ptr;
-    //     bool is_last = last_node_ == node_ptr;
-    //     Println<bool>(!node_ptr, "node_ptr is null");
-    //     difference_type ind = pos.ind;
-    //     Println(ind, "ind");
-    //     // for swap and copy idiom
-    //     NodeT old_node = *node_ptr;
-    //     Println("assigned old node");
-    //     NodeT* new_node = CreateEmptyNode();
-    //     Println("Created an empty node");
-    //     bool add_to_left = false;
-    //     try {
-    //         difference_type left_sz = NodeMaxSize / 2;
-    //         Println(left_sz, "left size");
-    //         difference_type right_sz = NodeMaxSize - left_sz;
-    //         Println(right_sz, "right size");
-    //         if (ind <= left_sz) {
-    //             add_to_left = true;
-    //         } else {
-    //             add_to_left = false;
-    //             if (left_sz <= right_sz) {
-    //                 ++left_sz;
-    //                 --right_sz;
-    //             }
-    //             ind -= left_sz;
-    //         }
-    //         Println(left_sz, "updated left_size");
-    //         Println(right_sz, "updated right_size");
-    //         Println(ind, "updated index");
-    //         Println("Moving to right");
-    //         MoveToRight(old_node, *new_node, right_sz);
-    //         PrintNode(old_node);
-    //         PrintNode(*new_node);
-    //         if (add_to_left) {
-    //             Println("adding to old node");
-    //             old_node.insert(val, ind);
-    //             PrintNode(old_node);
-    //         } else {
-    //             Println("adding to new node");
-    //             new_node->insert(val, ind);
-    //             PrintNode(*new_node);
-    //         }
-    //     } catch(const std::exception& ex) {
-    //         Println(ex.what(), "catched an error");
-    //         delete new_node;
-    //         throw;
-    //     }
-    //     Println("swap *node_ptr, old_node");
-    //     std::swap(*node_ptr, old_node);
-    //     Println("Linking nodes");
-    //     Println(last_node_);
-    //     LinkNodes(prev_node_ptr, node_ptr);
-    //     LinkNodes(node_ptr, new_node);
-    //     LinkNodes(new_node, next_node_ptr);
-    //     Println("Linked nodes:");
-    //     Println("*node_ptr->prev()");
-    //     if (node_ptr->prev())
-    //         PrintNode(*node_ptr->prev());
-    //     Println("*node_ptr");
-    //     PrintNode(*node_ptr);
-    //     Println("*node_ptr->next()");
-    //     if (node_ptr->next())
-    //         PrintNode(*node_ptr->next());
-    //     Println("*new_node->prev()");
-    //     if (new_node->prev())
-    //         PrintNode(*new_node->prev());
-    //     Println("*new_node");
-    //     PrintNode(*new_node);
-    //     Println("*new_node->next()");
-    //     if (new_node->next())
-    //         PrintNode(*new_node->next());
-
-    //     if (is_last) {
-    //         last_node_ = new_node;
-    //     }
-    //     if (is_first) {
-    //         first_node_ = node_ptr;
-    //     }
-    //     Println("End of function");
-    //     Println(ind, "ind");
-    //     if (add_to_left) {
-    //         Println("added to left");
-    //         return iterator{node_ptr, ind};
-    //     } else {
-    //         Println("added to right");
-    //         return iterator{new_node, ind};
-    //     }
-    // }
     void LinkNodes(NodeT* left, NodeT* right) noexcept {
         if (right) {
             right->SetPrev(left);
@@ -893,130 +715,3 @@ template<typename T, size_t NodeMaxSize, typename Allocator>
 void swap(unrolled_list<T, NodeMaxSize, Allocator>& l1, unrolled_list<T, NodeMaxSize, Allocator>& l2) {
     l1.swap(l2);
 }
-
-// template<typename T, size_t NodeMaxSize, typename Allocator>
-// class unrolled_list<T, NodeMaxSize, Allocator>::BaseIterator {
-//  protected:
-//     using _MyList = unrolled_list<T, NodeMaxSize, Allocator>;
-//     static const difference_type kStartInd = 0;
-//     BaseIterator() = default;
-//     BaseIterator(NodeT* node, difference_type pos = kStartInd)
-//         : node_ptr(node), ind(pos) {}
-//  public:
-//     bool operator==(const BaseIterator& other) const { return node_ptr == other.node_ptr && ind == other.ind; }
-//     bool operator!=(const BaseIterator& other) const { return !((*this) == other); }
-//     BaseIterator& operator++() {
-//         difference_type new_ind = ind + 1;
-//         if (!IsLastNode(node_ptr) && IsEndOfNode()) {
-//             node_ptr = node_ptr->next();
-//             new_ind = kStartInd;
-//         }
-//         ind = new_ind;
-//         return *this;
-//     }
-//     BaseIterator& operator--() {
-//         difference_type new_ind = ind - 1;
-//         if (!IsFirstNode(node_ptr) && IsBeginOfNode()) {
-//             node_ptr = node_ptr->prev();
-//             new_ind = node_ptr->size() - 1 + kStartInd;
-//         }
-//         ind = new_ind;
-//         return *this;
-//     }
-//     friend class unrolled_list<T, NodeMaxSize, Allocator>;
-//  protected:
-//     bool IsEndOfNode() const { return node_ptr->size() - 1 + kStartInd == ind; }
-//     bool IsBeginOfNode() const { return ind == kStartInd; }
-//  protected:
-//     NodeT* node_ptr;
-//     difference_type ind;
-// };
-
-// template<typename T, size_t NodeMaxSize, typename Allocator>
-// class unrolled_list<T, NodeMaxSize, Allocator>::const_iterator
-//     : public unrolled_list<T, NodeMaxSize, Allocator>::BaseIterator
-// {
-//     using _MyList = unrolled_list<T, NodeMaxSize, Allocator>;
-//     using _MyBase = _MyList::BaseIterator;
-//     using _MyBase::kStartInd;
-//     using _MyBase::ind;
-//     using _MyBase::node_ptr;
-//  public:
-//     using iterator_category = std::bidirectional_iterator_tag;
-//     using difference_type = _MyList::difference_type;
-//     using pointer = const _MyList::pointer;
-//     using reference = _MyList::const_reference;
-//     using value_type = _MyList::value_type;
-//     const_iterator() = default;
-//     const_iterator(NodeT* node, difference_type pos = _MyBase::kStartInd)
-//         : BaseIterator(node, pos) {}
-//     const_iterator(const _MyList::iterator& it)
-//         : BaseIterator(it) {}
-//     const T& operator*() const {
-//         // Println(ind, "iter ind");
-//         return (*node_ptr)[ind - kStartInd];
-//     }
-//     const pointer operator->() const {
-//         return &(**this);
-//     }
-//     const_iterator& operator++() {
-//         _MyBase::operator++();
-//         return (*this);
-//     }
-//     const_iterator operator++(int) {
-//         const_iterator copy = (*this);
-//         ++(*this);
-//         return copy;
-//     }
-//     const_iterator& operator--() {
-//         _MyBase::operator--();
-//         return (*this);
-//     }
-//     const_iterator operator--(int) {
-//         const_iterator copy = (*this);
-//         --(*this);
-//         return copy;
-//     }
-// };
-
-// template<typename T, size_t NodeMaxSize, typename Allocator>
-// class unrolled_list<T, NodeMaxSize, Allocator>::iterator
-//     : public unrolled_list<T, NodeMaxSize, Allocator>::BaseIterator
-// {
-//     using _MyBase = unrolled_list<T, NodeMaxSize, Allocator>::BaseIterator;
-//     using _MyList = _MyBase::_MyList;
-//     // static const difference_type kStartInd = 0;
-//  public:
-//     using iterator_category = std::bidirectional_iterator_tag;
-//     using difference_type = _MyList::difference_type;
-//     using pointer = _MyList::pointer;
-//     using reference = _MyList::reference;
-//     using value_type = _MyList::value_type;
-//     iterator() = default;
-//     iterator(NodeT* node, difference_type pos = _MyBase::kStartInd)
-//         : _MyBase(node, pos) {}
-//     bool operator==(const iterator& other) const { return _MyBase::operator==(other); }
-//     bool operator!=(const iterator& other) const { return !((*this) == other); }
-//     T& operator*() const { return (*_MyBase::node_ptr)[_MyBase::ind - _MyBase::kStartInd]; }
-//     pointer operator->() const {
-//         return &(**this);
-//     }
-//     iterator& operator++() { 
-//         _MyBase::operator++();
-//         return (*this);
-//     }
-//     iterator operator++(int) {
-//         iterator copy = (*this);
-//         ++(*this);
-//         return copy;
-//     }
-//     iterator& operator--() {
-//         _MyBase::operator--();
-//         return (*this);
-//     }
-//     iterator operator--(int) {
-//         iterator copy = (*this);
-//         --(*this);
-//         return copy;
-//     }
-// };

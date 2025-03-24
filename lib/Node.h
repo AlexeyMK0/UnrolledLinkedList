@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include "DebugPrint.h"
 
 template<typename T, size_t MaxSize = 10, typename Allocator = std::allocator<T>>
 class Node {
@@ -19,7 +18,6 @@ public:
     Node(const Allocator& allocator) 
         : allocator_(allocator) {
             data_ = reinterpret_cast<T*>(raw_memory_);
-            Println("creating node");
         }
     Node& operator=(const Node& other) {
         for (size_t i = 0; i < size_; ++i) {
@@ -43,12 +41,10 @@ public:
         size_ = other.size_;
         prev_ = other.prev_;
         next_ = other.next_;
-        Println("in constructor");
         for (size_t i = 0; i < size_; ++i) {
             size_t memory_ind = CalcModInd(left_ + i);
             AllocatorTraitsT::construct(allocator_, data_ + memory_ind, other[i]);
         }
-        Println("end of node constructor");
     }
     ~Node() {
         for (size_t ind = 0; ind < size_; ++ind) {
@@ -80,9 +76,7 @@ public:
             SetStartLeft();
         }
         size_t real_new_ind = (left_ + size_) % MaxSize;
-        Println("constructing new element");
         AllocatorTraitsT::construct(allocator_, data_ + real_new_ind, val);
-        Println("constructed succesfully!");
         ++size_;
         return true;
     }
@@ -129,9 +123,6 @@ public:
     }
     // use only if size < MaxSize
     void insert(const T& val, size_t ind) {
-        Println(ind, "ind");
-        Println(size_, "size");
-        Println(left_, "left");
         if (full()) {
             return;
         }
@@ -150,8 +141,6 @@ public:
             required_memory_index = CalcModInd(new_memory_index - (size_ - ind));
             push_back(val);
         }
-        Println(new_memory_index, "new memory index");
-        Println(required_memory_index, "required memory index");
         SiftInsert(new_memory_index, required_memory_index);
     }
     // use only if size != 0
@@ -169,11 +158,6 @@ public:
                 pop_back();
             }
         } catch (const std::exception& ex) {}
-        // size_t required_memory_ind = CalcModInd(left_ + ind);
-        // size_t del_memory_ind = FindClosest(required_memory_ind
-        //         , BeginMemoryIndex(), FirstBeforeEndMemoryIndex());
-        // SiftInsert(required_memory_ind, del_memory_ind);
-        // DeleteCell(del_memory_ind);
     }
     // ind is [0 size)
     T& operator[](size_t ind) {
@@ -223,11 +207,7 @@ public:
         left_ = MaxSize / 2;
     }
     void SiftInsert(size_t from, size_t to) {
-        Println("In SiftInsert");
         size_t count = CalcDist(from, to);
-        Println(to, "to");
-        Println(from, "from");
-        Println(count, "count");
         if (CalcModInd(from + count) == to) {
             SiftRight(from, count);
         } else {
@@ -235,25 +215,17 @@ public:
         }
     }
     void SiftRight(size_t from, size_t count) {
-        Println("sifting right");
-        Println(count, "count");
         while(count--) {
             std::swap(data_[CalcModInd(from)], data_[CalcModInd(from + 1)]);
             ++from;
         }
     }
     void SiftLeft(size_t from, size_t count) {
-        Println("sifting left");
-        Println(count, "count");
         while (count--) {
             std::swap(data_[CalcModInd(from)], data_[CalcModInd(from - 1)]);
             --from;
         }
     }
-    // friend Node<T, MaxSize, Allocator> Split(Node<T, MaxSize, Allocator>& node, size_t pos);
-    // friend bool CanBeMerged(const Node<T, MaxSize, Allocator>& left, const Node<T, MaxSize, Allocator>& right) noexcept;
-    // friend void MoveToLeft(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>& right);
-    // friend void MoveToRight(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>& right);
  private:
     alignas(T) char raw_memory_[MaxSize * sizeof(T)];
     Allocator allocator_;
@@ -264,9 +236,6 @@ public:
     Node* prev_ = nullptr;
 };
 
-// template<typename T, size_t MaxSize = 10, typename Allocator = std::allocator<T>>
-// Node<T, MaxSize, Allocator> Split(Node<T, MaxSize, Allocator>& node, size_t pos) {
-// }
 template<typename T, size_t MaxSize = 10, typename Allocator = std::allocator<T>>
 bool CanBeMerged(const Node<T, MaxSize, Allocator>& left, const Node<T, MaxSize, Allocator>& right) noexcept {
     return left.size() + right.size() <= MaxSize;
@@ -279,8 +248,6 @@ void MoveToLeft(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>& 
     max_len = std::min(right.size(), max_len);
     max_len = std::min(MaxSize - left.size(), max_len);
     for (int i = 0; i < max_len; ++i) {
-        Println(right.front(), "right.front()");
-        Println(left.size(), "left.size()");
         left.push_back(right.front());
         right.pop_front();
     }
@@ -297,9 +264,3 @@ void MoveToRight(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>&
         left.pop_back();
     }
 }
-
-// template<typename T, size_t MaxSize = 10, typename Allocator = std::allocator<T>>
-// std::pair<Node<T, MaxSize, Allocator>*, Node<T, MaxSize, Allocator>*> Split(Node<T, MaxSize, Allocator>* node) {
-//     using NodePtr =Node<T, MaxSize, Allocator>*;
-
-// } 
