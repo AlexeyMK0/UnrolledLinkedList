@@ -52,7 +52,6 @@ public:
     }
     ~Node() {
         for (size_t ind = 0; ind < size_; ++ind) {
-            Println(ind, "Destroying object #");
             AllocatorTraitsT::destroy(allocator_, data_ + CalcModInd(left_ + ind));
         }
     }
@@ -277,8 +276,8 @@ void MoveToLeft(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>& 
     if (right.empty()) {
         return;
     }
-    Println(max_len, "max_len");
     max_len = std::min(right.size(), max_len);
+    max_len = std::min(MaxSize - left.size(), max_len);
     for (int i = 0; i < max_len; ++i) {
         Println(right.front(), "right.front()");
         Println(left.size(), "left.size()");
@@ -292,6 +291,7 @@ void MoveToRight(Node<T, MaxSize, Allocator>& left, Node<T, MaxSize, Allocator>&
         return;
     }
     max_len = std::min(left.size(), max_len);
+    max_len = std::min(MaxSize - right.size(), max_len);
     for (int i = 0; i < max_len; ++i) {
         right.push_front(left.back());
         left.pop_back();

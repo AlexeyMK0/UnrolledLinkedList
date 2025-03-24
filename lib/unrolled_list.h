@@ -61,6 +61,11 @@ class unrolled_list {
             ind = new_ind;
             return *this;
         }
+        void Print() {
+            Println("Printing iterator");
+            Println(node_ptr, "node_ptr");
+            Println(ind, "ind");
+        }
         friend class unrolled_list<T, NodeMaxSize, Allocator>;
      protected:
         bool IsEndOfNode() const { return node_ptr->size() - 1 + kStartInd == ind; }
@@ -163,9 +168,12 @@ class unrolled_list {
  public:
     void Print() {
         NodeT* cur_node = first_node_;
+        size_t ind = 0;
         while(cur_node) {
+            Println(ind);
             PrintNode(*cur_node);
             cur_node = cur_node->next();
+            ++ind;
         }
     }
     // Constructors from Container
@@ -350,14 +358,88 @@ class unrolled_list {
         size_ += sz_dif;
         return ret_val;
     }
-    iterator erase(const_iterator pos) noexcept;
-    iterator erase(const_iterator start, const_iterator end) noexcept;
+    iterator erase(const_iterator pos) noexcept {
+        NodeT* node_ptr = pos.node_ptr;
+        difference_type ind = pos.ind;
+        if (!ValidateIteratorInErase(pos)) {
+            return iterator{node_ptr, ind};
+        }
+        node_ptr->erase(ind);
+        --size_;
+        NodeT* prev = node_ptr->prev();
+        NodeT* next = node_ptr->next();
+        if (node_ptr->empty()) {
+            EraseNode(node_ptr);
+            iterator ret_it;
+            if (IsFirstNode(node_ptr)) {
+                ret_it = begin();
+            } else if (IsLastNode(node_ptr)) {
+                ret_it = end();
+            } else {
+                ret_it = Begin(next);
+            }
+            return ret_it;
+        }
+        if (NeedToFill(node_ptr)) {
+            if (prev && CanBeMerged(*prev, *node_ptr)) {
+                ind += prev->size();
+                MergeNodeRetVal ret_val = MergeNodes(prev, node_ptr);
+                EraseNode(ret_val.reduced_node);
+                node_ptr = ret_val.filled_node;
+                prev = node_ptr->prev();
+            } else if (next && CanBeMerged(*node_ptr, *next)) {
+                MergeNodeRetVal ret_val = MergeNodes(node_ptr, next);
+                EraseNode(ret_val.reduced_node);
+                node_ptr = ret_val.filled_node;
+                next = node_ptr->next();
+            } else if (prev && CanBeFilled(prev, node_ptr)) {
+                ind += FillRightToRequired(prev, node_ptr);
+            } else if (next && CanBeFilled(node_ptr, next)) {
+                FillLeftToRequired(node_ptr, next);
+            }
+        }
+        Println("erased");
+        if (ind == GetNodeSize(node_ptr)) {
+            node_ptr = node_ptr->next();
+            ind = 0;
+        }
+        return iterator{node_ptr, ind};
+    }
+    iterator erase(const_iterator first, const_iterator last) noexcept {
+        if (first == last) {
+            return CastToIterator(last);
+        }
+        Println("Erasing completly covered nodes");
+        NodeT* first_node = first.node_ptr;
+        NodeT* last_node = last.node_ptr;
+        size_type first_sz = GetNodeSize(first_node);
+        size_type last_sz = GetNodeSize(last_node);
+        EraseCompletlyCoveredNodes(first, last);
+        size_type elem_cnt = first_sz - first.ind + last.ind;
+        if (first.ind == 0) {
+            elem_cnt = last.ind;
+        }
+        Println(first_sz, "first_sz");
+        Println(first.ind, "first.ind");
+        Println(last.ind, "last.ind");
+        Println(elem_cnt, "elem_cnt");
+        Println("Erasing remaining elements");
+        iterator ret_it = (first.ind == 0 ? Begin(last_node) : CastToIterator(first));
+        for (size_type i = 0; i < elem_cnt; ++i) {
+            ret_it = erase(ret_it);
+            // ret_it.Print();
+            // PrintNode(*ret_it.node_ptr);
+        }
+        Println("end of erase range");
+        return ret_it;
+    }
     bool ValidateIteratorInErase(const const_iterator& it) {
         NodeT* node_ptr = it.node_ptr;
         difference_type ind = it.ind;
         if (!node_ptr || ind >= node_ptr->size()) {
             return false;
         }
+        return true;
     }
     void clear() {
         NodeT* cur_node = first_node_;
@@ -477,19 +559,79 @@ class unrolled_list {
     // end of ReversibleContainer
 
     // opertions from AllocatorAwareContainer 
-    Allocator get_allocator() { return alloc_t_; }
+    Allocator get_allocator() const { return alloc_t_; }
     // end of AllocatorAwareContainer 
  private:
+    static size_type RequiredNodeSize() { return NodeMaxSize - NodeMaxSize / 2; }
     static bool IsLastNode(const NodeT* node) { return node->next() == nullptr; }
     static bool IsFirstNode(const NodeT* node) { return node->prev() == nullptr; }
+    static iterator CastToIterator(const_iterator cit) { return iterator{cit.node_ptr, cit.ind}; }
     static size_t GetNodeSize(const NodeT* node) { return (node ? node->size() : 0); }
+    bool NeedToFill(const NodeT* node_ptr) { return node_ptr && GetNodeSize(node_ptr) < NodeMaxSize - NodeMaxSize / 2; }
+    bool CanBeFilled(const NodeT* left, const NodeT* right) const {
+        return GetNodeSize(left) + GetNodeSize(right) < 2 * RequiredNodeSize();
+    }
     iterator Begin(NodeT* node) {
         return iterator{node, 0};
     }
+    size_type FillLeftToRequired(NodeT* left, NodeT* right) {
+        size_type added_elems = 0;
+        if (!CanBeFilled(left, right)) {
+            return added_elems;
+        }
+        while (GetNodeSize(left) < RequiredNodeSize()) {
+            left->push_back(right->front());
+            right->pop_front();
+            ++added_elems;
+        }
+        return added_elems;
+    }
+    size_type FillRightToRequired(NodeT* left, NodeT* right) {
+        size_type added_elems = 0;
+        if (!CanBeFilled(left, right)) {
+            return added_elems;
+        }
+        while (GetNodeSize(right) < RequiredNodeSize()) {
+            right->push_front(left->back());
+            left->pop_back();
+            ++added_elems;
+        }
+        return added_elems;
+    }
+
     void DeleteNode(NodeT* node_to_delete) {
         Println("deleting node");
         AllocatorTraitsNode::destroy(alloc_node_, node_to_delete);
         AllocatorTraitsNode::deallocate(alloc_node_, node_to_delete, 1);
+    }
+    void EraseCompletlyCoveredNodes(const_iterator first, const_iterator last) noexcept {
+        first.Print();
+        last.Print();
+        auto [first_node, last_node] = GetDeleteNodeRange(first, last);
+        NodeT* next_node = first_node;
+        Println(last_node, "last_node ptr");
+        while (next_node != last_node) {
+            Println(next_node, "cur_node ptr");
+            first_node = next_node;
+            next_node = first_node->next();
+            EraseNode(first_node);
+        }
+    }
+    // [first, second)
+    std::pair<NodeT*, NodeT*> GetDeleteNodeRange(const_iterator first, const_iterator last) {
+        Println("entering GetDeleteNodeRange");
+        NodeT* first_node = first.node_ptr;
+        NodeT* last_node = last.node_ptr;
+        Println(first_node, "first_node ptr");
+        Println(last_node, "last_node ptr");
+        if (first_node == last_node) {
+            return {first_node, last_node};
+        }
+        Println(first_node->next(), "first_node->next()");
+        if (first.ind != 0) {
+            first_node = first_node->next();
+        }
+        return {first_node, last_node};
     }
     void EraseNode(NodeT* node_to_erase) {
         if (!node_to_erase) {
@@ -503,13 +645,10 @@ class unrolled_list {
         if (IsLastNode(node_to_erase)) {
             last_node_ = prev;
         }
+        size_ -= GetNodeSize(node_to_erase);
         DeleteNode(node_to_erase);
         LinkNodes(prev, next);
     }
-    struct AddToNodeRetVal {
-        bool created_new_node = false;
-        NodeT* last_node = nullptr;
-    };
     NodeT* AddToNode(NodeT* node_ptr, difference_type ind, const_reference val) {
         NodeT* ret_val = node_ptr;
         // iterator ret_val;
@@ -713,6 +852,34 @@ class unrolled_list {
             throw;
         }
         return {left_node, node};
+    }
+    struct MergeNodeRetVal {
+        NodeT* filled_node;
+        NodeT* reduced_node;
+    };
+    MergeNodeRetVal MergeNodes(NodeT* left_node, NodeT* right_node) {
+        MergeNodeRetVal ret_val {nullptr, nullptr};
+        if (!left_node) {
+            ret_val.filled_node = right_node;
+            ret_val.reduced_node = left_node;
+            return ret_val;
+        }
+        if (!right_node) {
+            ret_val.filled_node = left_node;
+            ret_val.reduced_node = right_node;
+            return ret_val;
+        }
+        if (left_node->size() < right_node->size()) {
+            ret_val.filled_node = right_node;
+            ret_val.reduced_node = left_node;
+            MoveToRight(*left_node, *right_node);
+            return ret_val;
+        } else {
+            ret_val.filled_node = left_node;
+            ret_val.reduced_node = right_node;
+            MoveToLeft(*left_node, *right_node);
+            return ret_val;
+        }
     }
  private:
     Allocator alloc_t_;

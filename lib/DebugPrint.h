@@ -8,10 +8,13 @@ template<typename NODE>
 void PrintNode(NODE& node) {
     #ifdef ADD_DEBUG_PRINT
     std::cout << "size " << node.size() << std::endl;
-    for (int i = 0; i < node.size(); ++i) {
-        std::cout << node[i] << " ";
-    }
-    std::cout << std::endl;
+    std::cout << "address " << &node << std::endl;
+    std::cout << "next: " << node.next() << std::endl;
+    std::cout << "prev: " << node.prev() << std::endl;
+    // for (int i = 0; i < node.size(); ++i) {
+    //     std::cout << node[i] << " ";
+    // }
+    // std::cout << std::endl;
     #endif
 }
 
