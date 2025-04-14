@@ -28,10 +28,6 @@ class unrolled_list {
     using AllocatorTraitsT = std::allocator_traits<Allocator>;
     using AllocatorNode = AllocatorTraitsT::template rebind_alloc<NodeT>;
     using AllocatorTraitsNode = std::allocator_traits<AllocatorNode>;
-    // unrolled_list(Allocator alloc_t, AllocatorNode alloc_node,
-    //     difference_type sz = 0, NodeT* last_node = nullptr, NodeT* first_node = nullptr)
-    //     : alloc_t_(alloc_t), alloc_node_(alloc_node), size_(sz)
-    //     , last_node_(last_node), first_node_(first_node) {}
     class BaseIterator {
      protected:
         using _MyList = unrolled_list<T, NodeMaxSize, Allocator>;
@@ -73,7 +69,6 @@ class unrolled_list {
     {
         using _MyBase = unrolled_list<T, NodeMaxSize, Allocator>::BaseIterator;
         using _MyList = _MyBase::_MyList;
-        // static const difference_type kStartInd = 0;
      public:
         using iterator_category = std::bidirectional_iterator_tag;
         using difference_type = _MyList::difference_type;
@@ -466,7 +461,6 @@ class unrolled_list {
         }
         ++size_;
     }
-    // void push_front(T&& rv);
     void pop_front() noexcept {
         if (empty()) {
             return;
@@ -502,7 +496,6 @@ class unrolled_list {
         }
         ++size_;
     }
-    // void push_back(T&& rv);
     void pop_back() noexcept {
         if (empty()) {
             return;
