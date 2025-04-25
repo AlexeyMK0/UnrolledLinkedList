@@ -15,6 +15,29 @@
     Ожидается, что в итоге порядок элементов в контейнерах будут идентичен
 */
 
+
+struct CopyCounterObject {
+    CopyCounterObject() {
+        ++created;
+    }
+    CopyCounterObject(const CopyCounterObject& other) {
+        ++created;
+    }
+    CopyCounterObject& operator=(const CopyCounterObject& other) {
+        ++copied;
+        return *this;
+    }
+    static void Clear() {
+        copied = 0;
+        created = 0;
+    }
+    static int copied;
+    static int created;
+};
+
+int CopyCounterObject::copied {0};
+int CopyCounterObject::created {0};
+
 TEST(UnrolledLinkedList, pushBack) {
     std::list<int> std_list;
     unrolled_list<int> unrolled_list;
@@ -258,4 +281,21 @@ TEST(UnrolledLinkedListAdditionalTests, EraseRange) {
     ul.erase(from, to);
     res.erase(std_from, std_to);
     ASSERT_THAT(ul, ::testing::ElementsAreArray(res));
+}
+
+TEST(UnrolledLinkedListAdditionalTests, assignment) {
+    CopyCounterObject::Clear();
+    const int MaxSize = 5;
+    using AllocT = std::allocator<int>;
+    using Traits = std::allocator_traits<AllocT>;
+    using NodeT = Node<CopyCounterObject, MaxSize, AllocT>;
+    using List = unrolled_list<CopyCounterObject, MaxSize, AllocT>;
+    List l1;
+    const int Sz = 10;
+    for (int i = 0; i < Sz; ++i) {
+        l1.push_back({});
+    }
+    ASSERT_EQ(CopyCounterObject::created, 2 * Sz);
+    l1 = l1;
+    ASSERT_EQ(CopyCounterObject::copied, 0);
 }
