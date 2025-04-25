@@ -162,6 +162,9 @@ class unrolled_list {
     unrolled_list(const unrolled_list& other)
         : unrolled_list(other, other.get_allocator()) {}
     unrolled_list& operator=(const unrolled_list& other) {
+        if (&other == this) {
+            return *this;
+        }
         assign(other.begin(), other.end());
         return *this;
     }

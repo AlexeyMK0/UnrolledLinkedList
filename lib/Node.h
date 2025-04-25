@@ -20,6 +20,9 @@ public:
             data_ = reinterpret_cast<T*>(raw_memory_);
         }
     Node& operator=(const Node& other) {
+        if (&other == this) {
+            return *this;
+        }
         for (size_t i = 0; i < size_; ++i) {
             size_t memory_ind = CalcModInd(left_ + i);
             AllocatorTraitsT::destroy(allocator_, data_ + memory_ind);
